@@ -32,7 +32,7 @@
   <div id="output"></div>
 
   <h2>💰 空投金额估算</h2>
-  <p>假设 FDV = 6 亿，草总量 = 943.27 亿：</p>
+  <p>假设 FDV = 6 亿元，草总量 = 943.27 亿草（前 25 万地址统计）</p>
   <label>你拥有的草数量：</label>
   <input id="myGrass" value="100000" />
   <button onclick="updateAirdropTable()">计算</button>
@@ -42,7 +42,7 @@
       <tr>
         <th>空投百分比</th>
         <th>空投金额（万元）</th>
-        <th>每草价格</th>
+        <th>每草价格（元）</th>
         <th>你的草价值（元）</th>
       </tr>
     </thead>
@@ -51,7 +51,8 @@
 
 <script>
   let fullText = "";
-
+  let totalGrassCount = 0;
+  let totalHolderCount = 0;
   const files = [
     "https://raw.githubusercontent.com/7CCCCC21X/grasss/main/data.txt",
     "https://raw.githubusercontent.com/7CCCCC21X/grasss/main/data2.txt"
@@ -69,6 +70,14 @@
       }
     }
     fullText = all;
+
+    // 自动统计草的总量和地址数量
+    const matches = fullText.match(/"points"\s*:\s*(\d+)/g) || [];
+    totalHolderCount = matches.length;
+    totalGrassCount = matches.reduce((sum, line) => {
+      const val = parseInt(line.match(/\d+/)[0]);
+      return sum + val;
+    }, 0);
   }
 
   function searchAddress() {
@@ -79,6 +88,9 @@
     if (!fullText) {
       results = "❌ 尚未加载数据，请稍后再试";
     }
+
+    let foundCount = 0;
+    let foundGrass = 0;
 
     for (let addr of addresses) {
       const idx = fullText.indexOf(addr);
@@ -91,22 +103,27 @@
       const points = (nearby.match(/"points"\s*:\s*(\d+)/) || [])[1] || "未识别";
       const rank = (nearby.match(/"rank"\s*:\s*(\d+)/) || [])[1] || "未识别";
 
+      foundCount++;
+      foundGrass += parseInt(points);
+
       results += `✅ 地址：${addr}\n🌿 草：${points} ｜ 🏆 排名：${rank}\n\n`;
     }
+
+    results += `---\n📦 共输入地址数：${addresses.length}\n✅ 找到草的地址数：${foundCount}\n🌱 累计草总数：${foundGrass.toLocaleString()}\n📊 所有地址总数：${totalHolderCount}\n📈 草总量：${totalGrassCount.toLocaleString()}\n`;
 
     document.getElementById("output").innerText = results || "⚠️ 没有输入任何地址";
   }
 
   function updateAirdropTable() {
-    const FDV = 600000000; // 6 亿
-    const totalGrass = 9432700000; // 943.27 亿 => 单位为万草
+    const FDV = 600000000; // 6 亿元
+    const totalGrass = 94327000000; // 943.27 亿
     const myGrass = parseFloat(document.getElementById("myGrass").value) || 0;
 
     const percents = [3, 5, 10, 15, 20];
     let html = "";
 
     percents.forEach(pct => {
-      const airdropAmount = FDV * (pct / 100); // 总发多少钱
+      const airdropAmount = FDV * (pct / 100); // 发多少钱
       const grassPrice = airdropAmount / totalGrass;
       const myValue = myGrass * grassPrice;
       html += `<tr>
