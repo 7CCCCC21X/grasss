@@ -52,27 +52,34 @@
 
     let dataList = [];
 
-    // 读取 data.txt（完整 JSON） 和 data2.txt（JSON 数组片段），并合并
+    function fixJsonFormat(str) {
+      return str
+        .replace(/"\s+"/g, '","')                     // 修复字段间双引号空格双引号
+        .replace(/"\s+([a-zA-Z0-9])/g, '","$1')       // 修复字段值后接 key 的问题
+        .replace(/([a-zA-Z0-9])\s+"/g, '$1,"')        // 修复 key 后接字段值
+        .replace(/}\s*{/g, '},{')                     // 修复对象之间没有逗号
+        .replace(/,\s*]/g, ']')                       // 清理末尾多余逗号
+        .replace(/}\s*]$/, '}]')                      // 防止最后一个对象后没闭合
+        .replace(/"success"\s*:\s*true/, '"success": true') // 固定 true 关键字
+        .replace(/"data"\s*:\s*\[/, '"data":[');      // 修复 data 数组标识
+    }
+
+    // 加载并修复 JSON 数据
     Promise.all([
-      fetch('data.txt').then(res => res.json()),
-      fetch('data2.txt').then(res => res.text()) // 纯文本方式读取片段
+      fetch('data.txt').then(res => res.text()),
+      fetch('data2.txt').then(res => res.text())
     ])
-    .then(([data1, data2Raw]) => {
-      const list1 = Array.isArray(data1) ? data1 : (data1.data || []);
-
-      // 构造合法 JSON（包装 data2 内容）
-      const fixedData2Text = '{"data":[' + data2Raw.trim().replace(/,+$/, '') + ']}';
-      let list2 = [];
+    .then(([text1, text2]) => {
       try {
-        const data2Parsed = JSON.parse(fixedData2Text);
-        list2 = data2Parsed.data || [];
+        const fixed1 = JSON.parse(fixJsonFormat(text1));
+        const fixed2 = JSON.parse(fixJsonFormat(text2));
+        const list1 = Array.isArray(fixed1) ? fixed1 : (fixed1.data || []);
+        const list2 = Array.isArray(fixed2) ? fixed2 : (fixed2.data || []);
+        dataList = [...list1, ...list2];
+        console.log("✅ 数据加载成功，共", dataList.length, "条记录");
       } catch (e) {
-        alert("❌ 解析 data2.txt 失败，请检查格式是否正确");
-        console.error(e);
+        alert("❌ JSON 格式修复失败：" + e.message);
       }
-
-      dataList = [...list1, ...list2];
-      console.log("✅ 数据加载成功，共", dataList.length, "条记录");
     })
     .catch(err => {
       alert("❌ 无法读取数据文件：" + err.message);
