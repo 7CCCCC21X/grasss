@@ -4,27 +4,30 @@
   <meta charset="UTF-8">
   <title>草积分地址查询器 + 空投估算</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; }
-    h1 { color: #333; }
-    textarea, input { padding: 8px; width: 100%; margin-top: 10px; }
-    button { padding: 6px 12px; margin-top: 10px; cursor: pointer; }
+    body { font-family: sans-serif; padding: 20px; max-width: 900px; margin: auto; }
+    h1, h2 { color: #222; }
+    textarea, input { padding: 8px; width: 100%; margin-top: 10px; border-radius: 6px; border: 1px solid #ccc; }
+    button { padding: 8px 16px; margin-top: 10px; cursor: pointer; border-radius: 6px; border: none; background: #4caf50; color: white; }
+    button:hover { background: #45a049; }
     #output {
-      white-space: pre-wrap; background: #f6f6f6;
+      white-space: pre-wrap; background: #f9f9f9;
       padding: 12px; border-radius: 8px;
       margin-top: 20px; font-size: 14px;
+      border: 1px solid #ddd;
     }
     table {
       width: 100%; margin-top: 20px; border-collapse: collapse;
     }
     th, td {
-      padding: 8px; border: 1px solid #ccc; text-align: center;
+      padding: 10px; border: 1px solid #ccc; text-align: center;
     }
-    th { background-color: #eee; }
+    th { background-color: #f0f0f0; }
     .error { color: red; font-weight: bold; }
+    .found { color: green; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h1>🌿 草积分地址查询器</h1>
+  <h1>🌱 草积分地址查询器</h1>
 
   <textarea id="addressInput" placeholder="请输入地址，多个地址换行输入"></textarea>
   <button onclick="searchAddress()">查询</button>
@@ -32,9 +35,14 @@
   <div id="output"></div>
 
   <h2>💰 空投金额估算</h2>
-  <p>假设 FDV = 6 亿元，草总量 = 943.27 亿草（前 25 万地址统计）</p>
+  <p>假设 FDV = <input id="fdv" value="600000000" style="width:120px"> 元，草总量 = 943.27 亿草（前 25 万地址统计）</p>
+
   <label>你拥有的草数量：</label>
-  <input id="myGrass" value="100000" />
+  <input id="myGrass" value="100000000" />
+
+  <label>空投百分比（多个用逗号分隔）：</label>
+  <input id="percentList" value="3,5,10,15,20" />
+
   <button onclick="updateAirdropTable()">计算</button>
 
   <table>
@@ -42,8 +50,8 @@
       <tr>
         <th>空投百分比</th>
         <th>空投金额（万元）</th>
-        <th>每草价格（元）</th>
-        <th>你的草价值（元）</th>
+        <th>每草价格（USD）</th>
+        <th>你的草价值（USD）</th>
       </tr>
     </thead>
     <tbody id="airdropTableBody"></tbody>
@@ -70,8 +78,6 @@
       }
     }
     fullText = all;
-
-    // 自动统计草的总量和地址数量
     const matches = fullText.match(/"points"\s*:\s*(\d+)/g) || [];
     totalHolderCount = matches.length;
     totalGrassCount = matches.reduce((sum, line) => {
@@ -84,9 +90,8 @@
     const input = document.getElementById("addressInput").value.trim();
     const addresses = input.split(/\n/).map(x => x.trim()).filter(Boolean);
     let results = "";
-
     if (!fullText) {
-      results = "❌ 尚未加载数据，请稍后再试";
+      results = "❌ 未加载数据";
     }
 
     let foundCount = 0;
@@ -95,45 +100,41 @@
     for (let addr of addresses) {
       const idx = fullText.indexOf(addr);
       if (idx === -1) {
-        results += `❌ 未找到地址：${addr}\n`;
+        results += `\u274c \u672a\u627e\u5230\u5730\u5740：${addr}\n`;
         continue;
       }
-
       const nearby = fullText.slice(idx, idx + 300);
-      const points = (nearby.match(/"points"\s*:\s*(\d+)/) || [])[1] || "未识别";
-      const rank = (nearby.match(/"rank"\s*:\s*(\d+)/) || [])[1] || "未识别";
+      const points = (nearby.match(/"points"\s*:\s*(\d+)/) || [])[1] || "0";
+      const rank = (nearby.match(/"rank"\s*:\s*(\d+)/) || [])[1] || "-";
 
       foundCount++;
       foundGrass += parseInt(points);
 
-      results += `✅ 地址：${addr}\n🌿 草：${points} ｜ 🏆 排名：${rank}\n\n`;
+      results += `\ud83d\udc4d <span class="found">${addr}</span>\n\ud83c\udf3f \u8349：<b>${Number(points).toLocaleString()}</b>  | \ud83c\udfc6 \u6392\u540d：<b>${rank}</b>\n\n`;
     }
 
-    results += `---\n📦 共输入地址数：${addresses.length}\n✅ 找到草的地址数：${foundCount}\n🌱 累计草总数：${foundGrass.toLocaleString()}\n📊 所有地址总数：${totalHolderCount}\n📈 草总量：${totalGrassCount.toLocaleString()}\n`;
-
-    document.getElementById("output").innerText = results || "⚠️ 没有输入任何地址";
+    results += `---\n📦 共输入地址数：${addresses.length}\n🚀 有草地址数：${foundCount}\n🌿 输入地址累计草数：${foundGrass.toLocaleString()}\n📊 所有地址总数：${totalHolderCount}\n📈 草总量：${totalGrassCount.toLocaleString()}\n`;
+    document.getElementById("output").innerHTML = results;
   }
 
   function updateAirdropTable() {
-    const FDV = 600000000; // 6 亿元
-    const totalGrass = 94327000000; // 943.27 亿
+    const FDV = parseFloat(document.getElementById("fdv").value) || 600000000;
+    const totalGrass = 94327000000; // 943.27 亿草
     const myGrass = parseFloat(document.getElementById("myGrass").value) || 0;
-
-    const percents = [3, 5, 10, 15, 20];
+    const percents = document.getElementById("percentList").value.split(",").map(x => parseFloat(x.trim())).filter(x => x > 0);
     let html = "";
 
     percents.forEach(pct => {
-      const airdropAmount = FDV * (pct / 100); // 发多少钱
+      const airdropAmount = FDV * (pct / 100);
       const grassPrice = airdropAmount / totalGrass;
       const myValue = myGrass * grassPrice;
       html += `<tr>
         <td>${pct}%</td>
         <td>${(airdropAmount / 10000).toFixed(2)}</td>
-        <td>¥${grassPrice.toFixed(6)}</td>
-        <td>¥${myValue.toFixed(2)}</td>
+        <td>$${grassPrice.toFixed(6)}</td>
+        <td>$${myValue.toFixed(2)}</td>
       </tr>`;
     });
-
     document.getElementById("airdropTableBody").innerHTML = html;
   }
 
