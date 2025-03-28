@@ -41,78 +41,81 @@
     <div id="searchResult" style="margin-top: 20px;"></div>
   </div>
 
-  <script>
-    const prices = [
-      { percent: "3%", value: 0.0001264525 },
-      { percent: "5%", value: 0.0002107542 },
-      { percent: "10%", value: 0.0004215084 },
-      { percent: "15%", value: 0.0006322626 },
-      { percent: "20%", value: 0.0008430168 },
-    ];
+<script>
+  const prices = [
+    { percent: "3%", value: 0.0001264525 },
+    { percent: "5%", value: 0.0002107542 },
+    { percent: "10%", value: 0.0004215084 },
+    { percent: "15%", value: 0.0006322626 },
+    { percent: "20%", value: 0.0008430168 },
+  ];
 
-    let dataList = [];
+  let dataList = [];
 
-    function fixJsonFormat(str) {
-      return str
-        .replace(/}\s*{/g, '},{') // 修复对象之间缺少逗号
-        .replace(/"(\s+)"/g, '","') // 修复字段之间的空白
-        .replace(/"([^"]+)"\s*:\s*([^"{\[\],\s]+)/g, '"$1":"$2"') // 修复值未加引号
-        .replace(/,\s*]/g, ']') // 去掉数组末尾逗号
-        .replace(/}\s*]$/, '}]'); // 修复结尾缺失
+  // 强力修复 JSON 字符串格式
+  function fixBrokenJson(str) {
+    return str
+      .replace(/([{\[,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":') // 给 key 补上双引号
+      .replace(/:\s*([^",\]\}\s]+)/g, ': "$1"')               // 给 value 补上引号（如果是裸字符串）
+      .replace(/}\s*{/g, '},{')                               // 修复两个对象之间没有逗号
+      .replace(/},\s*]/g, '}]')                               // 修复数组末尾多逗号
+      .replace(/,\s*}/g, '}')                                 // 修复对象结尾多逗号
+      .replace(/""/g, '"');                                   // 清理重复引号
+  }
+
+  // 加载并修复 JSON 数据
+  Promise.all([
+    fetch('data.txt').then(res => res.text()),
+    fetch('data2.txt').then(res => res.text())
+  ])
+  .then(([text1, text2]) => {
+    try {
+      const fixed1 = JSON.parse(fixBrokenJson(text1));
+      const fixed2 = JSON.parse(fixBrokenJson(text2));
+      const list1 = Array.isArray(fixed1) ? fixed1 : (fixed1.data || []);
+      const list2 = Array.isArray(fixed2) ? fixed2 : (fixed2.data || []);
+      dataList = [...list1, ...list2];
+      console.log("✅ 数据加载成功，共", dataList.length, "条记录");
+    } catch (e) {
+      alert("❌ JSON 格式修复失败：" + e.message);
     }
+  })
+  .catch(err => {
+    alert("❌ 无法读取数据文件：" + err.message);
+  });
 
-    // 读取并合并数据
-    Promise.all([
-      fetch('data.txt').then(res => res.text()),
-      fetch('data2.txt').then(res => res.text())
-    ])
-    .then(([text1, text2]) => {
-      try {
-        const fixed1 = JSON.parse(fixJsonFormat(text1));
-        const fixed2 = JSON.parse(fixJsonFormat(text2));
-        const list1 = Array.isArray(fixed1) ? fixed1 : (fixed1.data || []);
-        const list2 = Array.isArray(fixed2) ? fixed2 : (fixed2.data || []);
-        dataList = [...list1, ...list2];
-        console.log("✅ 数据加载成功，共", dataList.length, "条记录");
-      } catch (e) {
-        alert("❌ JSON 格式修复失败：" + e.message);
-      }
-    })
-    .catch(err => {
-      alert("❌ 无法读取数据文件：" + err.message);
+  function calculate() {
+    const amount = parseFloat(document.getElementById("amount").value);
+    const tbody = document.getElementById("results");
+    tbody.innerHTML = "";
+    prices.forEach(p => {
+      const total = (amount * p.value).toFixed(4);
+      const row = `<tr><td>${p.percent}</td><td>${p.value.toFixed(10)}</td><td>$${total}</td></tr>`;
+      tbody.innerHTML += row;
     });
+  }
 
-    function calculate() {
-      const amount = parseFloat(document.getElementById("amount").value);
-      const tbody = document.getElementById("results");
-      tbody.innerHTML = "";
-      prices.forEach(p => {
-        const total = (amount * p.value).toFixed(4);
-        const row = `<tr><td>${p.percent}</td><td>${p.value.toFixed(10)}</td><td>$${total}</td></tr>`;
-        tbody.innerHTML += row;
-      });
+  function search() {
+    const addr = document.getElementById("searchAddress").value.trim();
+    const resultDiv = document.getElementById("searchResult");
+    if (!addr) {
+      resultDiv.innerHTML = "<p style='color:red;'>请输入地址</p>";
+      return;
     }
-
-    function search() {
-      const addr = document.getElementById("searchAddress").value.trim();
-      const resultDiv = document.getElementById("searchResult");
-      if (!addr) {
-        resultDiv.innerHTML = "<p style='color:red;'>请输入地址</p>";
-        return;
-      }
-      const entry = dataList.find(item => item.address === addr);
-      if (entry) {
-        resultDiv.innerHTML = `
-          <p><strong>地址：</strong>${entry.address}</p>
-          <p><strong>草的数量：</strong>${entry.points.toLocaleString()}</p>
-          <p><strong>排名：</strong>${entry.rank}</p>
-        `;
-      } else {
-        resultDiv.innerHTML = "<p style='color:red;'>未找到该地址，请确认输入是否正确。</p>";
-      }
+    const entry = dataList.find(item => item.address === addr);
+    if (entry) {
+      resultDiv.innerHTML = `
+        <p><strong>地址：</strong>${entry.address}</p>
+        <p><strong>草的数量：</strong>${parseInt(entry.points).toLocaleString()}</p>
+        <p><strong>排名：</strong>${entry.rank}</p>
+      `;
+    } else {
+      resultDiv.innerHTML = "<p style='color:red;'>未找到该地址，请确认输入是否正确。</p>";
     }
+  }
 
-    calculate();
-  </script>
+  calculate();
+</script>
+
 </body>
 </html>
