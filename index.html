@@ -28,8 +28,7 @@
         <th>输入数量对应价值（美元）</th>
       </tr>
     </thead>
-    <tbody id="results">
-    </tbody>
+    <tbody id="results"></tbody>
   </table>
 
   <div class="section">
@@ -37,7 +36,6 @@
     <label for="searchAddress">请输入地址：</label>
     <input type="text" id="searchAddress">
     <button onclick="search()">查询</button>
-
     <div id="searchResult" style="margin-top: 20px;"></div>
   </div>
 
@@ -55,15 +53,16 @@
   // 强力修复 JSON 字符串格式
   function fixBrokenJson(str) {
     return str
-      .replace(/([{\[,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":') // 给 key 补上双引号
-      .replace(/:\s*([^",\]\}\s]+)/g, ': "$1"')               // 给 value 补上引号（如果是裸字符串）
-      .replace(/}\s*{/g, '},{')                               // 修复两个对象之间没有逗号
-      .replace(/},\s*]/g, '}]')                               // 修复数组末尾多逗号
-      .replace(/,\s*}/g, '}')                                 // 修复对象结尾多逗号
-      .replace(/""/g, '"');                                   // 清理重复引号
+      .replace(/"success"\s*:\s*true\s+"data"/, '"success": true, "data"') // 补中间逗号
+      .replace(/([{\[,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')                // 给 key 补上引号
+      .replace(/}\s*{/g, '},{')                                             // 修复对象之间漏逗号
+      .replace(/}\s*]$/, '}]')                                              // 数组结尾修复
+      .replace(/,\s*]/g, ']')                                               // 数组末尾逗号
+      .replace(/,\s*}/g, '}')                                               // 对象末尾逗号
+      .replace(/""/g, '"');                                                 // 去除多余引号
   }
 
-  // 加载并修复 JSON 数据
+  // 读取两个文件并合并数据
   Promise.all([
     fetch('data.txt').then(res => res.text()),
     fetch('data2.txt').then(res => res.text())
