@@ -50,19 +50,27 @@
 
   let dataList = [];
 
-  // 强力修复 JSON 字符串格式
+  // 修复 JSON 格式 + 末尾丢失
   function fixBrokenJson(str) {
-    return str
+    let fixed = str
       .replace(/"success"\s*:\s*true\s+"data"/, '"success": true, "data"') // 补中间逗号
-      .replace(/([{\[,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')                // 给 key 补上引号
-      .replace(/}\s*{/g, '},{')                                             // 修复对象之间漏逗号
-      .replace(/}\s*]$/, '}]')                                              // 数组结尾修复
+      .replace(/([{\[,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')                // 给 key 补引号
+      .replace(/}\s*{/g, '},{')                                             // 对象间补逗号
       .replace(/,\s*]/g, ']')                                               // 数组末尾逗号
       .replace(/,\s*}/g, '}')                                               // 对象末尾逗号
-      .replace(/""/g, '"');                                                 // 去除多余引号
+      .replace(/""/g, '"')                                                  // 多余引号
+      .trim();
+
+    // 自动补 ]} 尾巴（防止解析失败）
+    if (!fixed.endsWith("]}")) {
+      fixed = fixed.replace(/[\s,\[{]*$/, ""); // 去尾部多余字符
+      fixed += "]}";
+    }
+
+    return fixed;
   }
 
-  // 读取两个文件并合并数据
+  // 加载数据并修复格式
   Promise.all([
     fetch('data.txt').then(res => res.text()),
     fetch('data2.txt').then(res => res.text())
