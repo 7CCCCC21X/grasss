@@ -2,92 +2,81 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>地址积分查询</title>
+  <title>草积分地址查询器</title>
   <style>
     body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; }
     h1 { color: #333; }
-    #drop-area {
-      border: 2px dashed #ccc; padding: 40px; text-align: center;
-      border-radius: 12px; background-color: #fafafa;
-      cursor: pointer; margin-bottom: 20px;
-    }
+    textarea { padding: 8px; width: 100%; margin-top: 10px; height: 120px; }
+    button { padding: 6px 12px; margin-top: 10px; cursor: pointer; }
     #output {
       white-space: pre-wrap; background: #f6f6f6;
-      padding: 12px; border-radius: 8px; overflow-x: auto;
+      padding: 12px; border-radius: 8px;
       margin-top: 20px; font-size: 14px;
     }
-    input[type="text"] { padding: 8px; width: 100%; margin-top: 10px; }
-    button { padding: 6px 12px; margin-top: 10px; cursor: pointer; }
     .error { color: red; font-weight: bold; }
+    .success { color: green; }
   </style>
 </head>
 <body>
   <h1>🌿 草积分地址查询器</h1>
 
-  <div id="drop-area">
-    <p>📂 拖入包含 <code>data</code> 的 JSON 文件，或点击上传</p>
-    <input type="file" id="fileElem" accept=".txt,.json" style="display:none">
-    <button onclick="fileElem.click()">选择文件</button>
-  </div>
+  <p>✅ 已从 GitHub 读取 <code>data.txt</code> 和 <code>data2.txt</code> 数据</p>
 
-  <div>
-    <input type="text" id="addressInput" placeholder="请输入地址，例如 HRufJT...">
-    <button onclick="searchAddress()">查询积分与排名</button>
-  </div>
+  <textarea id="addressInput" placeholder="请输入地址，多个地址换行输入"></textarea>
+  <button onclick="searchAddress()">查询</button>
 
   <div id="output"></div>
 
 <script>
-  let jsonData = [];
+  let fullText = "";
 
-  const dropArea = document.getElementById("drop-area");
-  const output = document.getElementById("output");
+  const files = [
+    "https://raw.githubusercontent.com/7CCCCC21X/grasss/main/data.txt",
+    "https://raw.githubusercontent.com/7CCCCC21X/grasss/main/data2.txt"
+  ];
 
-  dropArea.addEventListener("dragover", e => {
-    e.preventDefault();
-    dropArea.style.background = "#eee";
-  });
-
-  dropArea.addEventListener("dragleave", () => {
-    dropArea.style.background = "#fafafa";
-  });
-
-  dropArea.addEventListener("drop", async e => {
-    e.preventDefault();
-    dropArea.style.background = "#fafafa";
-    const file = e.dataTransfer.files[0];
-    await readFile(file);
-  });
-
-  document.getElementById("fileElem").addEventListener("change", e => {
-    const file = e.target.files[0];
-    readFile(file);
-  });
-
-  async function readFile(file) {
-    const text = await file.text();
-    try {
-      const parsed = JSON.parse(text);
-      if (parsed.data && Array.isArray(parsed.data)) {
-        jsonData = parsed.data;
-        output.innerHTML = `✅ 成功载入 ${jsonData.length} 条数据`;
-      } else {
-        throw new Error("数据格式错误！");
+  async function fetchAllFiles() {
+    let all = "";
+    for (let url of files) {
+      try {
+        const res = await fetch(url);
+        const text = await res.text();
+        all += text + "\n";
+      } catch (e) {
+        console.error("加载失败：", url, e);
       }
-    } catch (e) {
-      output.innerHTML = `<span class="error">❌ 解析失败：${e.message}</span>`;
     }
+    fullText = all;
+    document.getElementById("output").innerText = `✅ 已加载数据，总长度 ${fullText.length} 字符`;
   }
 
   function searchAddress() {
-    const addr = document.getElementById("addressInput").value.trim();
-    const match = jsonData.find(item => item.address === addr);
-    if (match) {
-      output.innerHTML = `✅ 地址：${match.address}<br>🌿 草：<strong>${match.points}</strong><br>🏆 排名：<strong>${match.rank}</strong>`;
-    } else {
-      output.innerHTML = `<span class="error">⚠️ 未找到该地址的数据！</span>`;
+    const input = document.getElementById("addressInput").value.trim();
+    const addresses = input.split(/\n/).map(x => x.trim()).filter(Boolean);
+    let results = "";
+
+    if (!fullText) {
+      results = "❌ 尚未加载数据，请稍后再试";
     }
+
+    for (let addr of addresses) {
+      const idx = fullText.indexOf(addr);
+      if (idx === -1) {
+        results += `❌ 未找到地址：${addr}\n`;
+        continue;
+      }
+
+      const nearby = fullText.slice(idx, idx + 300);
+      const points = (nearby.match(/"points"\s*:\s*(\d+)/) || [])[1] || "未识别";
+      const rank = (nearby.match(/"rank"\s*:\s*(\d+)/) || [])[1] || "未识别";
+
+      results += `✅ 地址：${addr}\n🌿 草：${points} ｜ 🏆 排名：${rank}\n\n`;
+    }
+
+    document.getElementById("output").innerText = results || "⚠️ 没有输入任何地址";
   }
+
+  fetchAllFiles(); // 页面加载时自动拉取数据
 </script>
 </body>
 </html>
