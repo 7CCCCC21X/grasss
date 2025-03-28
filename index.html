@@ -52,15 +52,25 @@
 
     let dataList = [];
 
-    // 读取 data.txt 和 data2.txt 并合并数据
+    // 读取 data.txt（完整 JSON） 和 data2.txt（JSON 数组片段），并合并
     Promise.all([
       fetch('data.txt').then(res => res.json()),
-      fetch('data2.txt').then(res => res.json())
+      fetch('data2.txt').then(res => res.text()) // 纯文本方式读取片段
     ])
-    .then(([data1, data2]) => {
-      // 支持格式：{ success: true, data: [...] } 或纯数组 [...]
+    .then(([data1, data2Raw]) => {
       const list1 = Array.isArray(data1) ? data1 : (data1.data || []);
-      const list2 = Array.isArray(data2) ? data2 : (data2.data || []);
+
+      // 构造合法 JSON（包装 data2 内容）
+      const fixedData2Text = '{"data":[' + data2Raw.trim().replace(/,+$/, '') + ']}';
+      let list2 = [];
+      try {
+        const data2Parsed = JSON.parse(fixedData2Text);
+        list2 = data2Parsed.data || [];
+      } catch (e) {
+        alert("❌ 解析 data2.txt 失败，请检查格式是否正确");
+        console.error(e);
+      }
+
       dataList = [...list1, ...list2];
       console.log("✅ 数据加载成功，共", dataList.length, "条记录");
     })
