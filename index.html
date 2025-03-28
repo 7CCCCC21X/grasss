@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>草估值计算器</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 700px; margin: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #f2f2f2; }
+    input[type="number"], input[type="text"] { width: 200px; padding: 4px; }
+    h1 { color: #333; }
+    .section { margin-top: 40px; }
+  </style>
+</head>
+<body>
+  <h1>草估值计算器</h1>
+  <p>FDV = 6 亿，草总量 = 943.27 亿</p> 
+
+  <label for="amount">请输入草的数量：</label>
+  <input type="number" id="amount" value="10000" oninput="calculate()">
+
+  <table>
+    <thead>
+      <tr>
+        <th>空投占比</th>
+        <th>每个草价值（美元）</th>
+        <th>输入数量对应价值（美元）</th>
+      </tr>
+    </thead>
+    <tbody id="results">
+    </tbody>
+  </table>
+
+  <div class="section">
+    <h2>查询草的数量与排名</h2>
+    <label for="searchAddress">请输入地址：</label>
+    <input type="text" id="searchAddress">
+    <button onclick="search()">查询</button>
+
+    <div id="searchResult" style="margin-top: 20px;"></div>
+  </div>
+
+  <script>
+    const prices = [
+      { percent: "3%", value: 0.0001264525 },
+      { percent: "5%", value: 0.0002107542 },
+      { percent: "10%", value: 0.0004215084 },
+      { percent: "15%", value: 0.0006322626 },
+      { percent: "20%", value: 0.0008430168 },
+    ];
+
+    let dataList = [];
+
+    // 读取 data.txt 和 data2.txt 并合并数据
+    Promise.all([
+      fetch('data.txt').then(res => res.json()),
+      fetch('data2.txt').then(res => res.json())
+    ])
+    .then(([data1, data2]) => {
+      // 支持格式：{ success: true, data: [...] } 或纯数组 [...]
+      const list1 = Array.isArray(data1) ? data1 : (data1.data || []);
+      const list2 = Array.isArray(data2) ? data2 : (data2.data || []);
+      dataList = [...list1, ...list2];
+      console.log("✅ 数据加载成功，共", dataList.length, "条记录");
+    })
+    .catch(err => {
+      alert("❌ 无法读取数据文件：" + err.message);
+    });
+
+    function calculate() {
+      const amount = parseFloat(document.getElementById("amount").value);
+      const tbody = document.getElementById("results");
+      tbody.innerHTML = "";
+      prices.forEach(p => {
+        const total = (amount * p.value).toFixed(4);
+        const row = `<tr><td>${p.percent}</td><td>${p.value.toFixed(10)}</td><td>$${total}</td></tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    function search() {
+      const addr = document.getElementById("searchAddress").value.trim();
+      const resultDiv = document.getElementById("searchResult");
+      if (!addr) {
+        resultDiv.innerHTML = "<p style='color:red;'>请输入地址</p>";
+        return;
+      }
+      const entry = dataList.find(item => item.address === addr);
+      if (entry) {
+        resultDiv.innerHTML = `
+          <p><strong>地址：</strong>${entry.address}</p>
+          <p><strong>草的数量：</strong>${entry.points.toLocaleString()}</p>
+          <p><strong>排名：</strong>${entry.rank}</p>
+        `;
+      } else {
+        resultDiv.innerHTML = "<p style='color:red;'>未找到该地址，请确认输入是否正确。</p>";
+      }
+    }
+
+    calculate();
+  </script>
+</body>
+</html>
