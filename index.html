@@ -2,127 +2,92 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>草估值计算器</title>
+  <title>地址积分查询</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; max-width: 700px; margin: auto; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background-color: #f2f2f2; }
-    input[type="number"], input[type="text"] { width: 200px; padding: 4px; }
+    body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; }
     h1 { color: #333; }
-    .section { margin-top: 40px; }
+    #drop-area {
+      border: 2px dashed #ccc; padding: 40px; text-align: center;
+      border-radius: 12px; background-color: #fafafa;
+      cursor: pointer; margin-bottom: 20px;
+    }
+    #output {
+      white-space: pre-wrap; background: #f6f6f6;
+      padding: 12px; border-radius: 8px; overflow-x: auto;
+      margin-top: 20px; font-size: 14px;
+    }
+    input[type="text"] { padding: 8px; width: 100%; margin-top: 10px; }
+    button { padding: 6px 12px; margin-top: 10px; cursor: pointer; }
+    .error { color: red; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h1>草估值计算器</h1>
-  <p>FDV = 6 亿，草总量 = 943.27 亿</p> 
+  <h1>🌿 草积分地址查询器</h1>
 
-  <label for="amount">请输入草的数量：</label>
-  <input type="number" id="amount" value="10000" oninput="calculate()">
-
-  <table>
-    <thead>
-      <tr>
-        <th>空投占比</th>
-        <th>每个草价值（美元）</th>
-        <th>输入数量对应价值（美元）</th>
-      </tr>
-    </thead>
-    <tbody id="results"></tbody>
-  </table>
-
-  <div class="section">
-    <h2>查询草的数量与排名</h2>
-    <label for="searchAddress">请输入地址：</label>
-    <input type="text" id="searchAddress">
-    <button onclick="search()">查询</button>
-    <div id="searchResult" style="margin-top: 20px;"></div>
+  <div id="drop-area">
+    <p>📂 拖入包含 <code>data</code> 的 JSON 文件，或点击上传</p>
+    <input type="file" id="fileElem" accept=".txt,.json" style="display:none">
+    <button onclick="fileElem.click()">选择文件</button>
   </div>
 
+  <div>
+    <input type="text" id="addressInput" placeholder="请输入地址，例如 HRufJT...">
+    <button onclick="searchAddress()">查询积分与排名</button>
+  </div>
+
+  <div id="output"></div>
+
 <script>
-  const prices = [
-    { percent: "3%", value: 0.0001264525 },
-    { percent: "5%", value: 0.0002107542 },
-    { percent: "10%", value: 0.0004215084 },
-    { percent: "15%", value: 0.0006322626 },
-    { percent: "20%", value: 0.0008430168 },
-  ];
+  let jsonData = [];
 
-  let dataList = [];
+  const dropArea = document.getElementById("drop-area");
+  const output = document.getElementById("output");
 
-  // 修复 JSON 格式 + 末尾丢失
-  function fixBrokenJson(str) {
-    let fixed = str
-      .replace(/"success"\s*:\s*true\s+"data"/, '"success": true, "data"') // 补中间逗号
-      .replace(/([{\[,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')                // 给 key 补引号
-      .replace(/}\s*{/g, '},{')                                             // 对象间补逗号
-      .replace(/,\s*]/g, ']')                                               // 数组末尾逗号
-      .replace(/,\s*}/g, '}')                                               // 对象末尾逗号
-      .replace(/""/g, '"')                                                  // 多余引号
-      .trim();
-
-    // 自动补 ]} 尾巴（防止解析失败）
-    if (!fixed.endsWith("]}")) {
-      fixed = fixed.replace(/[\s,\[{]*$/, ""); // 去尾部多余字符
-      fixed += "]}";
-    }
-
-    return fixed;
-  }
-
-  // 加载数据并修复格式
-  Promise.all([
-    fetch('data.txt').then(res => res.text()),
-    fetch('data2.txt').then(res => res.text())
-  ])
-  .then(([text1, text2]) => {
-    try {
-      const fixed1 = JSON.parse(fixBrokenJson(text1));
-      const fixed2 = JSON.parse(fixBrokenJson(text2));
-      const list1 = Array.isArray(fixed1) ? fixed1 : (fixed1.data || []);
-      const list2 = Array.isArray(fixed2) ? fixed2 : (fixed2.data || []);
-      dataList = [...list1, ...list2];
-      console.log("✅ 数据加载成功，共", dataList.length, "条记录");
-    } catch (e) {
-      alert("❌ JSON 格式修复失败：" + e.message);
-    }
-  })
-  .catch(err => {
-    alert("❌ 无法读取数据文件：" + err.message);
+  dropArea.addEventListener("dragover", e => {
+    e.preventDefault();
+    dropArea.style.background = "#eee";
   });
 
-  function calculate() {
-    const amount = parseFloat(document.getElementById("amount").value);
-    const tbody = document.getElementById("results");
-    tbody.innerHTML = "";
-    prices.forEach(p => {
-      const total = (amount * p.value).toFixed(4);
-      const row = `<tr><td>${p.percent}</td><td>${p.value.toFixed(10)}</td><td>$${total}</td></tr>`;
-      tbody.innerHTML += row;
-    });
+  dropArea.addEventListener("dragleave", () => {
+    dropArea.style.background = "#fafafa";
+  });
+
+  dropArea.addEventListener("drop", async e => {
+    e.preventDefault();
+    dropArea.style.background = "#fafafa";
+    const file = e.dataTransfer.files[0];
+    await readFile(file);
+  });
+
+  document.getElementById("fileElem").addEventListener("change", e => {
+    const file = e.target.files[0];
+    readFile(file);
+  });
+
+  async function readFile(file) {
+    const text = await file.text();
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed.data && Array.isArray(parsed.data)) {
+        jsonData = parsed.data;
+        output.innerHTML = `✅ 成功载入 ${jsonData.length} 条数据`;
+      } else {
+        throw new Error("数据格式错误！");
+      }
+    } catch (e) {
+      output.innerHTML = `<span class="error">❌ 解析失败：${e.message}</span>`;
+    }
   }
 
-  function search() {
-    const addr = document.getElementById("searchAddress").value.trim();
-    const resultDiv = document.getElementById("searchResult");
-    if (!addr) {
-      resultDiv.innerHTML = "<p style='color:red;'>请输入地址</p>";
-      return;
-    }
-    const entry = dataList.find(item => item.address === addr);
-    if (entry) {
-      resultDiv.innerHTML = `
-        <p><strong>地址：</strong>${entry.address}</p>
-        <p><strong>草的数量：</strong>${parseInt(entry.points).toLocaleString()}</p>
-        <p><strong>排名：</strong>${entry.rank}</p>
-      `;
+  function searchAddress() {
+    const addr = document.getElementById("addressInput").value.trim();
+    const match = jsonData.find(item => item.address === addr);
+    if (match) {
+      output.innerHTML = `✅ 地址：${match.address}<br>🌿 草：<strong>${match.points}</strong><br>🏆 排名：<strong>${match.rank}</strong>`;
     } else {
-      resultDiv.innerHTML = "<p style='color:red;'>未找到该地址，请确认输入是否正确。</p>";
+      output.innerHTML = `<span class="error">⚠️ 未找到该地址的数据！</span>`;
     }
   }
-
-  calculate();
 </script>
-
 </body>
 </html>
