@@ -2,13 +2,20 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>草数量地址查询器 + 空投估算</title>
+  <title>草积分查询器 + 空投估算</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; max-width: 900px; margin: auto; }
+    body { font-family: sans-serif; padding: 20px; max-width: 900px; margin: auto; background: #fdfdfd; }
     h1, h2 { color: #222; }
     textarea, input { padding: 8px; width: 100%; margin-top: 10px; border-radius: 6px; border: 1px solid #ccc; }
-    button { padding: 8px 16px; margin-top: 10px; cursor: pointer; border-radius: 6px; border: none; background: #4caf50; color: white; }
-    button:hover { background: #45a049; }
+    button {
+      padding: 8px 16px; margin-top: 10px; cursor: pointer; border-radius: 6px;
+      border: none; background: #4caf50; color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    button:hover { background: #45a049; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+    .card {
+      background: white; padding: 20px; margin-top: 30px;
+      border: 1px solid #eee; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
     #output {
       white-space: pre-wrap; background: #f9f9f9;
       padding: 12px; border-radius: 8px;
@@ -34,6 +41,7 @@
     a { color: #0077cc; text-decoration: none; }
     .fdv-hint { display: inline-block; margin-left: 8px; color: #888; font-size: 13px; }
     .no-data { text-align: center; color: #888; font-style: italic; }
+    hr { border: none; border-top: 1px solid #ddd; margin: 40px 0; }
   </style>
 </head>
 <body>
@@ -42,41 +50,47 @@
   作者推特：<a href="https://x.com/0xXIAOc" target="_blank">@0xXIAOc</a>
 </div>
 
-<h1>🌱 草数量地址查询器</h1>
+<div class="card">
+  <h1>🌱 草积分查询（支持批量地址）</h1>
+  <textarea id="addressInput" placeholder="请输入地址，多个地址换行输入"></textarea>
+  <button onclick="searchAddress()">查询</button>
+  <div id="output"></div>
+</div>
 
-<textarea id="addressInput" placeholder="请输入地址，多个地址换行输入"></textarea>
-<button onclick="searchAddress()">查询</button>
+<hr />
 
-<div id="output"></div>
+<div class="card">
+  <h2>💰 空投金额估算 <a href="https://x.com/0xXIAOc" target="_blank" style="font-size:14px; margin-left:10px;">by @0xXIAOc</a></h2>
+  <p class="info">🪂 计算在不同空投比例下，你的草大概值多少钱（以 FDV 为基准）</p>
 
-<h2>💰 空投金额估算 <a href="https://x.com/0xXIAOc" target="_blank" style="font-size:14px; margin-left:10px;">by @0xXIAOc</a></h2>
+  <p>
+    假设项目 FDV（完全稀释估值）=
+    <input id="fdv" value="600000000" placeholder="单位：元" style="width:140px" oninput="showFDVHint()" />
+    元 <span id="fdvHint" class="fdv-hint">≈ 6.00 亿元</span>，草总量 = 982.84 亿草（前 25 万地址统计）
+  </p>
 
-<p>
-  假设 FDV = 
-  <input id="fdv" value="600000000" placeholder="单位：元" style="width:140px" oninput="showFDVHint()" />
-  元 <span id="fdvHint" class="fdv-hint">≈ 6.00 亿元</span>，草总量 = 943.27 亿草（前 25 万地址统计）
-</p>
+  <label>你拥有的草数量：</label>
+  <input id="myGrass" value="100000000" oninput="showFormattedGrass()" />
+  <div class="formatted-value" id="formattedGrass"></div>
 
-<label>你拥有的草数量：</label>
-<input id="myGrass" value="100000000" oninput="showFormattedGrass()" />
-<div class="formatted-value" id="formattedGrass"></div>
+  <label>空投百分比（多个用逗号分隔）：</label>
+  <input id="percentList" value="3,5,10,15,20" placeholder="例如：5,10,20" />
 
-<label>空投百分比（多个用逗号分隔）：</label>
-<input id="percentList" value="3,5,10,15,20" placeholder="例如：5,10,20" />
+  <button onclick="updateAirdropTable()" id="calcBtn">计算</button>
 
-<button onclick="updateAirdropTable()" id="calcBtn">计算</button>
-
-<table>
-  <thead>
-    <tr>
-      <th>空投百分比</th>
-      <th>空投金额（万元）</th>
-      <th>每草价格（USD）</th>
-      <th>你的草价值（USD）</th>
-    </tr>
-  </thead>
-  <tbody id="airdropTableBody"></tbody>
-</table>
+  <table>
+    <thead>
+      <tr>
+        <th>空投百分比</th>
+        <th>空投金额（万元）</th>
+        <th>可分配代币数量（枚）</th>
+        <th>每草价格（USD）</th>
+        <th>你的草价值（USD）</th>
+      </tr>
+    </thead>
+    <tbody id="airdropTableBody"></tbody>
+  </table>
+</div>
 
 <script>
   let fullText = "";
@@ -130,7 +144,7 @@
       foundCount++;
       foundGrass += parseInt(points);
 
-      results += `✅ <span class="found">${addr}</span>\n🌿 草：<b>${Number(points).toLocaleString()}</b> ｜ 🏆 排名：<b>${rank}</b>\n\n`;
+      results += `✅ <span class=\"found\">${addr}</span>\n🌿 草：<b>${Number(points).toLocaleString()}</b> ｜ 🏆 排名：<b>${rank}</b>\n\n`;
     }
 
     results += `---\n📦 共输入地址数：${addresses.length}\n✅ 有草地址数：${foundCount}\n🌱 输入地址累计草数：${foundGrass.toLocaleString()}\n📊 所有地址总数：${totalHolderCount}\n📈 草总量：${totalGrassCount.toLocaleString()}\n`;
@@ -143,8 +157,9 @@
     btn.innerText = "计算中...";
 
     const FDV = parseFloat(document.getElementById("fdv").value) || 600000000;
-    const totalGrass = 94327000000;
+    const totalGrass = 98283998314;
     const myGrass = parseFloat(document.getElementById("myGrass").value) || 0;
+    const tokenTotal = 1000000000; // 代币总数：10亿枚
 
     const raw = document.getElementById("percentList").value;
     const percents = raw.split(",").map(x => parseFloat(x.trim())).filter(x => !isNaN(x) && x > 0);
@@ -152,7 +167,7 @@
     const tbody = document.getElementById("airdropTableBody");
     if (!percents.length) {
       alert("请输入合法的空投百分比，如：5,10,15");
-      tbody.innerHTML = `<tr><td colspan="4" class="no-data">暂无数据</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan=\"5\" class=\"no-data\">暂无数据</td></tr>`;
       btn.disabled = false;
       btn.innerText = "计算";
       return;
@@ -163,15 +178,18 @@
       const airdropAmount = FDV * (pct / 100);
       const grassPrice = airdropAmount / totalGrass;
       const myValue = myGrass * grassPrice;
+      const tokenAmount = tokenTotal * (pct / 100);
+
       html += `<tr>
         <td>${pct}%</td>
         <td>${(airdropAmount / 10000).toFixed(2)}</td>
+        <td>${Math.floor(tokenAmount).toLocaleString()}</td>
         <td>$${grassPrice.toFixed(6)}</td>
         <td>$${myValue.toFixed(2)}</td>
       </tr>`;
     });
 
-    tbody.innerHTML = html || `<tr><td colspan="4" class="no-data">暂无数据</td></tr>`;
+    tbody.innerHTML = html || `<tr><td colspan=\"5\" class=\"no-data\">暂无数据</td></tr>`;
     btn.disabled = false;
     btn.innerText = "计算";
   }
