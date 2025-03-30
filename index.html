@@ -61,7 +61,7 @@
 
 <div class="card">
   <h2>💰 空投金额估算 <a href="https://x.com/0xXIAOc" target="_blank" style="font-size:14px; margin-left:10px;">by @0xXIAOc</a></h2>
-  <p class="info">🪂 计算在不同空投比例下，你的草大概值多少钱，并估算你可获得的代币数量（按你所持草数在总草量中的占比）</p>
+  <p class="info">🪂 计算在不同空投比例下，你的草大概值多少钱（以 FDV 为基准）</p>
 
   <p>
     假设项目 FDV（完全稀释估值）=
@@ -108,20 +108,20 @@
       try {
         const res = await fetch(url);
         const text = await res.text();
-        all += text + "\\n";
+        all += text + "\n";
       } catch (e) {
         console.error("加载失败：", url, e);
       }
     }
     fullText = all;
-    const matches = fullText.match(/\"points\"\\s*:\\s*(\\d+)/g) || [];
+    const matches = fullText.match(/"points"\s*:\s*(\d+)/g) || [];
     totalHolderCount = matches.length;
-    totalGrassCount = matches.reduce((sum, line) => sum + parseInt(line.match(/\\d+/)[0]), 0);
+    totalGrassCount = matches.reduce((sum, line) => sum + parseInt(line.match(/\d+/)[0]), 0);
   }
 
   function searchAddress() {
     const input = document.getElementById("addressInput").value.trim();
-    const addresses = input.split(/\\n/).map(x => x.trim()).filter(Boolean);
+    const addresses = input.split(/\n/).map(x => x.trim()).filter(Boolean);
     let results = "";
     if (!fullText) {
       results = "❌ 未加载数据";
@@ -133,21 +133,21 @@
     for (let addr of addresses) {
       const idx = fullText.indexOf(addr);
       if (idx === -1) {
-        results += `❌ 未找到地址：${addr}\\n`;
+        results += `❌ 未找到地址：${addr}\n`;
         continue;
       }
 
       const nearby = fullText.slice(idx, idx + 300);
-      const points = (nearby.match(/\"points\"\\s*:\\s*(\\d+)/) || [])[1] || "0";
-      const rank = (nearby.match(/\"rank\"\\s*:\\s*(\\d+)/) || [])[1] || "-";
+      const points = (nearby.match(/"points"\s*:\s*(\d+)/) || [])[1] || "0";
+      const rank = (nearby.match(/"rank"\s*:\s*(\d+)/) || [])[1] || "-";
 
       foundCount++;
       foundGrass += parseInt(points);
 
-      results += `✅ <span class=\"found\">${addr}</span>\\n🌿 草：<b>${Number(points).toLocaleString()}</b> ｜ 🏆 排名：<b>${rank}</b>\\n\\n`;
+      results += `✅ <span class="found">${addr}</span>\n🌿 草：<b>${Number(points).toLocaleString()}</b> ｜ 🏆 排名：<b>${rank}</b>\n\n`;
     }
 
-    results += `---\\n📦 共输入地址数：${addresses.length}\\n✅ 有草地址数：${foundCount}\\n🌱 输入地址累计草数：${foundGrass.toLocaleString()}\\n📊 所有地址总数：${totalHolderCount}\\n📈 草总量：${totalGrassCount.toLocaleString()}\\n`;
+    results += `---\n📦 共输入地址数：${addresses.length}\n✅ 有草地址数：${foundCount}\n🌱 输入地址累计草数：${foundGrass.toLocaleString()}\n📊 所有地址总数：${totalHolderCount}\n📈 草总量：${totalGrassCount.toLocaleString()}\n`;
     document.getElementById("output").innerHTML = results;
   }
 
