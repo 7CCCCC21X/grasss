@@ -66,7 +66,7 @@
   <p>
     假设项目 FDV（完全稀释估值）=
     <input id="fdv" value="600000000" placeholder="单位：元" style="width:140px" oninput="showFDVHint()" />
-    元 <span id="fdvHint" class="fdv-hint">≈ 6.00 亿元</span>，草总量 = 1089.63 亿草（前 25 万地址统计）
+    元 <span id="fdvHint" class="fdv-hint">≈ 6.00 亿元</span>，草总量 = 1057.34 亿草（前 25 万地址统计）
   </p>
 
   <label>你拥有的草数量：</label>
@@ -157,7 +157,7 @@
     btn.innerText = "计算中...";
 
     const FDV = parseFloat(document.getElementById("fdv").value) || 600000000;
-    const totalGrass = 108963015560;
+    const totalGrass = 115734262076;
     const myGrass = parseFloat(document.getElementById("myGrass").value) || 0;
     const tokenTotal = 1000000000;
 
