@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>草积分查询器 + 空投估算</title>
   <style>
     body { font-family: sans-serif; padding: 20px; max-width: 900px; margin: auto; background: #fdfdfd; }
@@ -93,27 +93,40 @@
 </div>
 
 <script>
-  let fullText = "";
-  let totalGrassCount = 0;
-  let totalHolderCount = 0;
-
   const files = [
     "https://raw.githubusercontent.com/7CCCCC21X/grasss/main/data.txt",
     "https://raw.githubusercontent.com/7CCCCC21X/grasss/main/data2.txt"
   ];
 
-  async function fetchAllFiles() {
-    let all = "";
-    for (let url of files) {
+  let fullText = "";
+  let totalGrassCount = 0;
+  let totalHolderCount = 0;
+
+  async function fetchWithRetry(url, retries = 10, delay = 1500) {
+    for (let i = 0; i < retries; i++) {
       try {
         const res = await fetch(url);
         const text = await res.text();
-        all += text + "\n";
+        if (text.length < 100) throw new Error("数据可能未加载完整");
+        console.log(`✅ 成功加载：${url}`);
+        return text;
       } catch (e) {
-        console.error("加载失败：", url, e);
+        console.warn(`⚠️ 第 ${i + 1} 次尝试失败：${url}`, e);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
+    console.error(`❌ 加载失败：${url}`);
+    return "";
+  }
+
+  async function fetchAllFiles() {
+    let all = "";
+    for (let url of files) {
+      const text = await fetchWithRetry(url);
+      all += text + "\n";
+    }
     fullText = all;
+
     const matches = fullText.match(/"points"\s*:\s*(\d+)/g) || [];
     totalHolderCount = matches.length;
     totalGrassCount = matches.reduce((sum, line) => sum + parseInt(line.match(/\d+/)[0]), 0);
